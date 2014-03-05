@@ -95,7 +95,9 @@ if [ "$usage" = "yes" ]; then
         echo "  Options are all passed to run-test; refer to that for " \
              "further documentation:"
         echo "    --debug --dev --host --interpreter --jvm --no-optimize"
-        echo "    --no-verify -O --update --valgrind --zygote --seq"
+        echo "    --no-verify -O --update --valgrind --zygote"
+        echo "  Specific Runtime Options:"
+        echo "    --seq                Run tests one-by-one, avoiding failures caused by busy CPU"
     ) 1>&2
     exit 1
 fi
