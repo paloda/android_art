@@ -516,10 +516,21 @@ bool ParsedOptions::Parse(const Runtime::Options& options, bool ignore_unrecogni
         return false;
       }
       image_compiler_options_.push_back(options[i].first);
-    } else if (StartsWith(option, "-ea:") ||
-               StartsWith(option, "-da:") ||
-               StartsWith(option, "-enableassertions:") ||
-               StartsWith(option, "-disableassertions:") ||
+    } else if (StartsWith(option, "-Xverify:")) {
+      std::string verify_mode = option.substr(strlen("-Xverify:"));
+      if (verify_mode == "none") {
+        verify_ = false;
+      } else if (verify_mode == "remote" || verify_mode == "all") {
+        verify_ = true;
+      } else {
+        Usage("Unknown -Xverify option %s", verify_mode.c_str());
+        return false;
+      }
+    } else if (StartsWith(option, "-ea") ||
+               StartsWith(option, "-da") ||
+               StartsWith(option, "-enableassertions") ||
+               StartsWith(option, "-disableassertions") ||
+               (option == "--runtime-arg") ||
                (option == "-esa") ||
                (option == "-dsa") ||
                (option == "-enablesystemassertions") ||
