@@ -135,6 +135,12 @@ bool InlineMethodAnalyser::AnalyseMethodCode(verifier::MethodVerifier* verifier,
   }
 }
 
+bool InlineMethodAnalyser::IsSyntheticAccessor(MethodReference ref) {
+  const DexFile::MethodId& method_id = ref.dex_file->GetMethodId(ref.dex_method_index);
+  const char* method_name = ref.dex_file->GetMethodName(method_id);
+  return strncmp(method_name, "access$", strlen("access$")) == 0;
+}
+
 bool InlineMethodAnalyser::AnalyseReturnMethod(const DexFile::CodeItem* code_item,
                                                InlineMethod* result) {
   const Instruction* return_instruction = Instruction::At(code_item->insns_);
@@ -223,9 +229,12 @@ bool InlineMethodAnalyser::AnalyseIGetMethod(verifier::MethodVerifier* verifier,
     return false;  // Not returning the value retrieved by IGET?
   }
 
-  if ((verifier->GetAccessFlags() & kAccStatic) != 0 || object_reg != arg_start) {
-    // TODO: Support inlining IGET on other register than "this".
-    return false;
+  if ((verifier->GetAccessFlags() & kAccStatic) != 0u || object_arg != 0u) {
+    // TODO: Implement inlining of IGET on non-"this" registers (needs correct stack trace for NPE).
+    // Allow synthetic accessors. We don't care about losing their stack frame in NPE.
+    if (!IsSyntheticAccessor(verifier->GetMethodReference())) {
+      return false;
+    }
   }
 
   if (result != nullptr) {
@@ -236,10 +245,10 @@ bool InlineMethodAnalyser::AnalyseIGetMethod(verifier::MethodVerifier* verifier,
     result->opcode = kInlineOpIGet;
     result->flags = kInlineSpecial;
     data->op_variant = IGetVariant(opcode);
-    data->object_arg = object_reg - arg_start;  // Allow IGET on any register, not just "this".
-    data->src_arg = 0;
-    data->method_is_static = (verifier->GetAccessFlags() & kAccStatic) != 0;
-    data->reserved = 0;
+    data->method_is_static = (verifier->GetAccessFlags() & kAccStatic) != 0u ? 1u : 0u;
+    data->object_arg = object_arg;  // Allow IGET on any register, not just "this".
+    data->src_arg = 0u;
+    data->return_arg_plus1 = 0u;
   }
   return true;
 }
@@ -271,9 +280,12 @@ bool InlineMethodAnalyser::AnalyseIPutMethod(verifier::MethodVerifier* verifier,
   DCHECK_GE(src_reg, arg_start);
   DCHECK_LT(opcode == Instruction::IPUT_WIDE ? src_reg + 1 : src_reg, code_item->registers_size_);
 
-  if ((verifier->GetAccessFlags() & kAccStatic) != 0 || object_reg != arg_start) {
-    // TODO: Support inlining IPUT on other register than "this".
-    return false;
+  if ((verifier->GetAccessFlags() & kAccStatic) != 0u || object_arg != 0u) {
+    // TODO: Implement inlining of IPUT on non-"this" registers (needs correct stack trace for NPE).
+    // Allow synthetic accessors. We don't care about losing their stack frame in NPE.
+    if (!IsSyntheticAccessor(verifier->GetMethodReference())) {
+      return false;
+    }
   }
 
   if (result != nullptr) {
@@ -284,10 +296,10 @@ bool InlineMethodAnalyser::AnalyseIPutMethod(verifier::MethodVerifier* verifier,
     result->opcode = kInlineOpIPut;
     result->flags = kInlineSpecial;
     data->op_variant = IPutVariant(opcode);
-    data->object_arg = object_reg - arg_start;  // Allow IPUT on any register, not just "this".
-    data->src_arg = src_reg - arg_start;
-    data->method_is_static = (verifier->GetAccessFlags() & kAccStatic) != 0;
-    data->reserved = 0;
+    data->method_is_static = (verifier->GetAccessFlags() & kAccStatic) != 0u ? 1u : 0u;
+    data->object_arg = object_arg;  // Allow IPUT on any register, not just "this".
+    data->src_arg = src_arg;
+    data->return_arg_plus1 = return_arg_plus1;
   }
   return true;
 }

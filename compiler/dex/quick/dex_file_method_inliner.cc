@@ -480,9 +480,18 @@ bool DexFileMethodInliner::AnalyseConstMethod(int32_t method_idx,
   if (instruction->Opcode() == Instruction::CONST_HIGH16) {
     vB <<= 16;
   }
-  DCHECK_LT(vA, code_item->registers_size_);
-  if (vA != return_reg) {
-    return false;  // Not returning the value set by const?
+
+  DCHECK_EQ(data.method_is_static != 0u,
+            invoke->dalvikInsn.opcode == Instruction::INVOKE_STATIC ||
+            invoke->dalvikInsn.opcode == Instruction::INVOKE_STATIC_RANGE);
+  bool object_is_this = (data.method_is_static == 0u && data.object_arg == 0u);
+  if (!object_is_this) {
+    // TODO: Implement inlining of IGET on non-"this" registers (needs correct stack trace for NPE).
+    // Allow synthetic accessors. We don't care about losing their stack frame in NPE.
+    if (!InlineMethodAnalyser::IsSyntheticAccessor(
+        mir_graph->GetMethodLoweringInfo(invoke).GetTargetMethod())) {
+      return false;
+    }
   }
   if (return_opcode == Instruction::RETURN_OBJECT && vB != 0) {
     return false;  // Returning non-null reference constant?
@@ -519,15 +528,18 @@ bool DexFileMethodInliner::AnalyseIGetMethod(int32_t method_idx, const DexFile::
 
   // TODO: Check that the field is FastInstance().
 
-  InlineIGetIPutData data;
-  data.d.field = vC;
-  data.d.op_size = size;
-  data.d.is_object = is_object;
-  data.d.object_arg = vB - arg_start;  // Allow iget on any register, not just "this"
-  data.d.src_arg = 0;
-  data.d.reserved = 0;
-  return AddInlineMethod(method_idx, kInlineOpIGet, kInlineSpecial, data.data);
-}
+  DCHECK_EQ(data.method_is_static != 0u,
+            invoke->dalvikInsn.opcode == Instruction::INVOKE_STATIC ||
+            invoke->dalvikInsn.opcode == Instruction::INVOKE_STATIC_RANGE);
+  bool object_is_this = (data.method_is_static == 0u && data.object_arg == 0u);
+  if (!object_is_this) {
+    // TODO: Implement inlining of IPUT on non-"this" registers (needs correct stack trace for NPE).
+    // Allow synthetic accessors. We don't care about losing their stack frame in NPE.
+    if (!InlineMethodAnalyser::IsSyntheticAccessor(
+        mir_graph->GetMethodLoweringInfo(invoke).GetTargetMethod())) {
+      return false;
+    }
+  }
 
 bool DexFileMethodInliner::AnalyseIPutMethod(int32_t method_idx, const DexFile::CodeItem* code_item,
                                              OpSize size, bool is_object) {
