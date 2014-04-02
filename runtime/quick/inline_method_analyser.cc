@@ -237,6 +237,12 @@ bool InlineMethodAnalyser::AnalyseIGetMethod(verifier::MethodVerifier* verifier,
     }
   }
 
+  // InlineIGetIPutData::object_arg is only 4 bits wide.
+  static constexpr uint16_t kMaxObjectArg = 15u;
+  if (object_arg > kMaxObjectArg) {
+    return false;
+  }
+
   if (result != nullptr) {
     InlineIGetIPutData* data = &result->d.ifield_data;
     if (!ComputeSpecialAccessorInfo(field_idx, false, verifier, data)) {
@@ -279,6 +285,16 @@ bool InlineMethodAnalyser::AnalyseIPutMethod(verifier::MethodVerifier* verifier,
   DCHECK_LT(object_reg, code_item->registers_size_);
   DCHECK_GE(src_reg, arg_start);
   DCHECK_LT(opcode == Instruction::IPUT_WIDE ? src_reg + 1 : src_reg, code_item->registers_size_);
+  uint32_t object_arg = object_reg - arg_start;
+  uint32_t src_arg = src_reg - arg_start;
+
+  if ((verifier->GetAccessFlags() & kAccStatic) != 0u || object_arg != 0u) {
+    // TODO: Implement inlining of IPUT on non-"this" registers (needs correct stack trace for NPE).
+    // Allow synthetic accessors. We don't care about losing their stack frame in NPE.
+    if (!IsSyntheticAccessor(verifier->GetMethodReference())) {
+      return false;
+    }
+  }
 
   if ((verifier->GetAccessFlags() & kAccStatic) != 0u || object_arg != 0u) {
     // TODO: Implement inlining of IPUT on non-"this" registers (needs correct stack trace for NPE).
