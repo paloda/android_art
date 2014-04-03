@@ -30,6 +30,12 @@ namespace art {
 // quasiatomic operations that are performed on partially-overlapping
 // memory.
 class QuasiAtomic {
+#if defined(__mips__) || !defined(__LP64__)
+  static constexpr bool kNeedSwapMutexes = true;
+#else
+  static constexpr bool kNeedSwapMutexes = false;
+#endif
+
  public:
   static void Startup();
 
