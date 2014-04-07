@@ -1101,8 +1101,9 @@ JDWP::JdwpError Dbg::SetArrayElements(JDWP::ObjectId array_id, int offset, int c
     LOG(WARNING) << __FUNCTION__ << " access out of bounds: offset=" << offset << "; count=" << count;
     return JDWP::ERR_INVALID_LENGTH;
   }
-  std::string descriptor(ClassHelper(dst->GetClass()).GetDescriptor());
-  JDWP::JdwpTag tag = BasicTagFromDescriptor(descriptor.c_str() + 1);
+  ClassHelper ch(dst->GetClass());
+  const char* descriptor = ch.GetDescriptor();
+  JDWP::JdwpTag tag = BasicTagFromDescriptor(descriptor + 1);
 
   if (IsPrimitiveTag(tag)) {
     size_t width = GetTagWidth(tag);
