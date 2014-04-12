@@ -34,7 +34,14 @@ namespace art {
 namespace gc {
 namespace space {
 
-static const bool kPrefetchDuringRosAllocFreeList = true;
+static constexpr bool kPrefetchDuringRosAllocFreeList = true;
+static constexpr size_t kPrefetchLookAhead = 8;
+// Use this only for verification, it is not safe to use since the class of the object may have
+// been freed.
+static constexpr bool kVerifyFreedBytes = false;
+
+// TODO: Fix
+// template class ValgrindMallocSpace<RosAllocSpace, allocator::RosAlloc*>;
 
 RosAllocSpace::RosAllocSpace(const std::string& name, MemMap* mem_map,
                              art::gc::allocator::RosAlloc* rosalloc, byte* begin, byte* end,
@@ -163,32 +170,23 @@ size_t RosAllocSpace::Free(Thread* self, mirror::Object* ptr) {
     CHECK(ptr != NULL);
     CHECK(Contains(ptr)) << "Free (" << ptr << ") not in bounds of heap " << *this;
   }
-  const size_t bytes_freed = AllocationSizeNonvirtual(ptr);
   if (kRecentFreeCount > 0) {
     MutexLock mu(self, lock_);
     RegisterRecentFree(ptr);
   }
-  rosalloc_->Free(self, ptr);
-  return bytes_freed;
+  return rosalloc_->Free(self, ptr);
 }
 
 size_t RosAllocSpace::FreeList(Thread* self, size_t num_ptrs, mirror::Object** ptrs) {
   DCHECK(ptrs != nullptr);
 
-  // Use this only for verification, it is not safe to use since the class of the object may have
-  // been freed.
-  static constexpr bool kVerifyFreedBytes = false;
-  static constexpr size_t kPrefetchLookAhead = 8;
-
   size_t verify_bytes = 0;
-  if (kVerifyFreedBytes || kPrefetchDuringRosAllocFreeList) {
-    for (size_t i = 0; i < num_ptrs; i++) {
-      if (i + kPrefetchLookAhead < num_ptrs) {
-        __builtin_prefetch(reinterpret_cast<char*>(ptrs[i + kPrefetchLookAhead]));
-      }
-      if (kVerifyFreedBytes) {
-        verify_bytes += AllocationSizeNonvirtual(ptrs[i], nullptr);
-      }
+  for (size_t i = 0; i < num_ptrs; i++) {
+    if (kPrefetchDuringRosAllocFreeList && i + kPrefetchLookAhead < num_ptrs) {
+      __builtin_prefetch(reinterpret_cast<char*>(ptrs[i + kPrefetchLookAhead]));
+    }
+    if (kVerifyFreedBytes) {
+      verify_bytes += AllocationSizeNonvirtual(ptrs[i], nullptr);
     }
   }
 
