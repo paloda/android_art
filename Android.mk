@@ -223,9 +223,32 @@ test-art-target-sync: test-art-target-dependencies
 .PHONY: test-art-target-gtest
 test-art-target-gtest: $(ART_TARGET_TEST_TARGETS)
 
-.PHONY: test-art-target-oat
-test-art-target-oat: $(ART_TEST_TARGET_OAT_TARGETS)
-	@echo test-art-target-oat PASSED
+define declare-test-art-target-gtest
+.PHONY: test-art-target-gtest$(1)
+test-art-target-gtest$(1): $(ART_TARGET_GTEST_TARGETS$(1))
+	@echo test-art-target-gtest$(1) PASSED
+endef
+$(eval $(call call-art-multi-target-rule,declare-test-art-target-gtest,test-art-target-gtest))
+
+
+define declare-test-art-target-oat
+.PHONY: test-art-target-oat$(1)
+test-art-target-oat$(1): $(ART_TEST_TARGET_OAT_TARGETS$(1))
+	@echo test-art-target-oat$(1) PASSED
+endef
+$(eval $(call call-art-multi-target-rule,declare-test-art-target-oat,test-art-target-oat))
+
+
+define declare-test-art-target-run-test-impl
+$(2)run_test_$(1) :=
+ifeq ($($(2)ART_PHONY_TEST_TARGET_SUFFIX),64)
+ $(2)run_test_$(1) := --64
+endif
+.PHONY: test-art-target-run-test-$(1)$($(2)ART_PHONY_TEST_TARGET_SUFFIX)
+test-art-target-run-test-$(1)$($(2)ART_PHONY_TEST_TARGET_SUFFIX): test-art-target-sync $(DX) $(HOST_OUT_EXECUTABLES)/jasmin
+	DX=$(abspath $(DX)) JASMIN=$(abspath $(HOST_OUT_EXECUTABLES)/jasmin) art/test/run-test $(DALVIKVM_FLAGS) $$($(2)run_test_$(1)) $(1)
+	@echo test-art-target-run-test-$(1)$($(2)ART_PHONY_TEST_TARGET_SUFFIX) PASSED
+endef
 
 define declare-test-art-target-run-test
 .PHONY: test-art-target-run-test-$(1)
