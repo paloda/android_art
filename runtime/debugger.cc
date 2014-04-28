@@ -3674,6 +3674,13 @@ class StringTable {
   DISALLOW_COPY_AND_ASSIGN(StringTable);
 };
 
+static const char* GetMethodSourceFile(MethodHelper* mh)
+    SHARED_LOCKS_REQUIRED(Locks::mutator_lock_) {
+  DCHECK(mh != nullptr);
+  const char* source_file = mh->GetDeclaringClassSourceFile();
+  return (source_file != nullptr) ? source_file : "";
+}
+
 /*
  * The data we send to DDMS contains everything we have recorded.
  *
@@ -3746,7 +3753,7 @@ jbyteArray Dbg::GetRecentAllocations() {
           mh.ChangeMethod(m);
           class_names.Add(mh.GetDeclaringClassDescriptor());
           method_names.Add(mh.GetName());
-          filenames.Add(mh.GetDeclaringClassSourceFile());
+          filenames.Add(GetMethodSourceFile(&mh));
         }
       }
 
@@ -3809,7 +3816,7 @@ jbyteArray Dbg::GetRecentAllocations() {
         mh.ChangeMethod(record->stack[stack_frame].method);
         size_t class_name_index = class_names.IndexOf(mh.GetDeclaringClassDescriptor());
         size_t method_name_index = method_names.IndexOf(mh.GetName());
-        size_t file_name_index = filenames.IndexOf(mh.GetDeclaringClassSourceFile());
+        size_t file_name_index = filenames.IndexOf(GetMethodSourceFile(&mh));
         JDWP::Append2BE(bytes, class_name_index);
         JDWP::Append2BE(bytes, method_name_index);
         JDWP::Append2BE(bytes, file_name_index);
