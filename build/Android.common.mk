@@ -114,15 +114,11 @@ art_cflags := \
 	-fno-rtti \
 	-std=gnu++11 \
 	-ggdb3 \
-        -fgcse-las \
-        -funroll-loops \
 	-Wall \
 	-Werror \
 	-Wextra \
 	-Wstrict-aliasing=3 \
-	-Ofast \
-        -fno-tree-vectorize \
-        -fno-unsafe-math-optimizations
+	-fstrict-aliasing
 
 ifeq ($(ART_SMALL_MODE),true)
   art_cflags += -DART_SMALL_MODE=1
@@ -138,14 +134,10 @@ ifeq ($(HOST_OS),linux)
 endif
 
 art_non_debug_cflags := \
-        -Ofast \
-        -fno-tree-vectorize \
-        -fno-unsafe-math-optimizations
+        -O3
 
 art_debug_cflags := \
-	-Ofast \
-        -fno-tree-vectorize \
-        -fno-unsafe-math-optimizations \
+	-O1 \
 	-DDYNAMIC_ANNOTATIONS_ENABLED=1 \
 	-UNDEBUG
 
